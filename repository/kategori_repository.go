@@ -2,11 +2,21 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"project-app-inventaris-cli-Fauzan_Alsya_Prasetyo/model"
 )
 
 type KategoriRepository struct {
 	DB *sql.DB
+}
+
+func NewKategoriRepository(db *sql.DB) *KategoriRepository {
+	return &KategoriRepository{DB: db}
+}
+
+func (r *KategoriRepository) Create(kategori *model.Kategori) error {
+	query := "INSERT INTO kategori (nama, deskripsi) VALUES ($1, $2) RETURNING id"
+	return r.DB.QueryRow(query, kategori.Nama, kategori.Deskripsi).Scan(&kategori.ID)
 }
 
 func (r *KategoriRepository) GetAll() ([]model.Kategori, error) {
@@ -28,25 +38,22 @@ func (r *KategoriRepository) GetAll() ([]model.Kategori, error) {
 }
 
 func (r *KategoriRepository) GetByID(id int) (*model.Kategori, error) {
-	row := r.DB.QueryRow("SELECT id, nama, deskripsi FROM kategori WHERE id=$1", id)
 	var k model.Kategori
-	if err := row.Scan(&k.ID, &k.Nama, &k.Deskripsi); err != nil {
-		return nil, err
+	err := r.DB.QueryRow("SELECT id, nama, deskripsi FROM kategori WHERE id = $1", id).
+		Scan(&k.ID, &k.Nama, &k.Deskripsi)
+	if err == sql.ErrNoRows {
+		return nil, errors.New("kategori tidak ditemukan")
 	}
-	return &k, nil
+	return &k, err
 }
 
-func (r *KategoriRepository) Create(nama, deskripsi string) error {
-	_, err := r.DB.Exec("INSERT INTO kategori (nama, deskripsi) VALUES ($1, $2)", nama, deskripsi)
-	return err
-}
-
-func (r *KategoriRepository) Update(id int, nama, deskripsi string) error {
-	_, err := r.DB.Exec("UPDATE kategori SET nama=$1, deskripsi=$2 WHERE id=$3", nama, deskripsi, id)
+func (r *KategoriRepository) Update(kategori *model.Kategori) error {
+	_, err := r.DB.Exec("UPDATE kategori SET nama = $1, deskripsi = $2 WHERE id = $3",
+		kategori.Nama, kategori.Deskripsi, kategori.ID)
 	return err
 }
 
 func (r *KategoriRepository) Delete(id int) error {
-	_, err := r.DB.Exec("DELETE FROM kategori WHERE id=$1", id)
+	_, err := r.DB.Exec("DELETE FROM kategori WHERE id = $1", id)
 	return err
 }
